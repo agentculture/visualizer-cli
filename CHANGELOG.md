@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-11-21
+
+### Added
+
+- CI file-length gate: every tracked source file stays at or under 400 lines, cap and checked extensions configured in pyproject.toml ([tool.file-length] max-lines, file-types — .py plus .js/.jsx/.ts/.tsx for the planned frontend) and enforced by scripts/check-file-length.py in the lint job. Cited from culture-agent-template, adapted to read the cap and file types from pyproject.toml.
+- Roadmap and issue #1 (interactive React Flow diagrams as standalone HTML, Mermaid as source/fallback) documented in CLAUDE.md, README and the other harness prompt files, including its open questions.
+
+### Changed
+
+- CLAUDE.md re-initialized from the seed into a full runtime prompt: commands, CLI contract, harness files, skills, conventions, and an honest scaffold-vs-planned status.
+- README rewritten for visualizer-cli (no longer the template's 'make it your own' text); AGENTS.colleague.md, AGENTS.override.md and QWEN.md updated to match.
+- scripts/harness-smoke.py split into scripts/_harness_smoke/ (one module per stage) and tests/test_harness_smoke.py split into smoke_support/conftest/test_harness_smoke_contract, cited from culture-agent-template, so every file fits the cap.
+
+### Fixed
+
+- Docs said `uv run visualizer-cli ...`; the console script is `visualizer`.
+
 ## [0.10.0] - 2026-10-06
 
 ### Added
