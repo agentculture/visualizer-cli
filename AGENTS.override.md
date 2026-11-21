@@ -20,10 +20,20 @@ what the repo is and how it is laid out, not who is reading it.
 
 ## What this project is
 
-`visualizer-cli` is a clonable template for AgentCulture mesh agents —
-a working, minimal example of the sibling pattern every Culture agent follows:
-an agent-first CLI, a mesh identity, the canonical skill kit, and a
-buildable/deployable package baseline. It is a sibling to
+`visualizer-cli` is the AgentCulture agent for a **web workspace for
+agent-built docs and content**. Agents author structured documents with charts
+and diagrams through a CLI, an HTTP API, and an MCP server, and humans view
+them in the browser on desktop, phone, or remotely.
+
+**Status:** only the scaffold exists today. That covers the agent-first CLI
+(identity and introspection verbs), the mesh identity, the canonical skill
+kit, and the CI/deploy baseline it was generated from
+(`culture-agent-template`). The document model, the three fronts, the browser
+viewer, and
+[issue #1](https://github.com/agentculture/visualizer-cli/issues/1)
+(interactive React Flow diagrams as standalone HTML, with Mermaid as
+source/fallback) are **planned**, not built. If someone asks whether a
+feature exists, check the code rather than the description. It is a sibling to
 [`guildmaster`](https://github.com/agentculture/guildmaster) (the skills
 supplier), [`steward`](https://github.com/agentculture/steward) (alignment),
 and [`teken`](https://github.com/agentculture/teken) (the CLI scaffolder this
@@ -74,6 +84,7 @@ visualizer_cli/   agent-first CLI (cited from teken's python-cli reference)
   cli/                    parser, error/output contract, _commands/ (verbs)
   explain/                markdown catalog for `explain`
 tests/                    pytest smoke + introspection tests
+scripts/                  CI gates: scan-secrets, check-file-length, harness-smoke (+ _harness_smoke/)
 .claude/skills/           vendored guildmaster skill kit (cite-don't-import)
 docs/skill-sources.md     skill provenance ledger
 culture.yaml              mesh identity (suffix + backend)
@@ -85,9 +96,12 @@ culture.yaml              mesh identity (suffix + backend)
 - The vendored skills under `.claude/skills/` are cited **verbatim** from
   guildmaster — never propose editing their scripts; the fix belongs upstream
   (`docs/skill-sources.md` has the re-sync procedure).
-- The package/CLI name (`visualizer_cli` / `visualizer-cli`)
-  is hard-coded in roughly a hundred places; a rename is a `git grep` sweep,
-  not a hand edit (see `CLAUDE.md`'s "Cloning this template" section).
+- The console script is `visualizer`. The package/dist/prog name is
+  `visualizer_cli` / `visualizer-cli`.
+- No tracked source file may exceed **400 lines**. The cap and the checked
+  extensions are `pyproject.toml` `[tool.file-length]` (`max-lines`,
+  `file-types`: `.py`/`.js`/`.jsx`/`.ts`/`.tsx`), enforced by
+  `scripts/check-file-length.py` in CI. Vendored skills are exempt.
 - Every PR bumps the version (`version-bump` skill); CI's `version-check` job
   blocks merge otherwise.
 - This file describes the repo **as it exists on disk today**. If you are

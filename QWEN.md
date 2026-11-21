@@ -9,11 +9,18 @@ Qwen Code session.
 
 ## What this project is
 
-`visualizer-cli` is a **clonable template for AgentCulture mesh agents**.
-It is a working, minimal example of the sibling pattern every Culture agent
-follows: an agent-first CLI, a mesh identity, the canonical skill kit, and a
-buildable/deployable package baseline. Clone it, rename the package, edit
-`culture.yaml`, and you have a new agent that `steward doctor` recognizes.
+`visualizer-cli` is the AgentCulture agent for a **web workspace for
+agent-built docs and content**. Agents author structured documents with charts
+and diagrams through a CLI, an HTTP API, and an MCP server, and humans view
+them in the browser on desktop, phone, or remotely via a served site.
+
+**Status: only the scaffold exists today.** It was generated from
+`culture-agent-template` and contains the agent-first CLI (identity and
+introspection verbs), the mesh identity, the canonical skill kit, and
+CI/deploy. The document model, CLI authoring verbs, HTTP API, MCP server and
+browser viewer are all **planned**. Some CLI strings (`learn`, the `explain`
+root entry, the parser description) still say "a clonable template"; they are
+stale.
 
 It is a sibling to [`guildmaster`](https://github.com/agentculture/guildmaster)
 (the **skills supplier**), [`steward`](https://github.com/agentculture/steward)
@@ -52,33 +59,26 @@ requires nor changes that declaration. The declaration and the resident prompt
 together satisfy the two invariants `steward doctor` verifies:
 **prompt-file-present** and **backend-consistency** (`claude` ↔ `CLAUDE.md`).
 
-## Cloning this template (re-initialization)
+## Roadmap (planned — not built)
 
-When you start a new agent from this template:
-
-1. Rename the package directory `visualizer_cli/` → `<your_module>/`
-   and replace `visualizer_cli` (module) / `visualizer-cli`
-   (CLI and dist name) throughout `pyproject.toml`, the package, `tests/`,
-   `sonar-project.properties`, and `README.md`. The name is hard-coded in
-   ~100 places, so list every occurrence first rather than renaming by hand
-   (`git grep` is portable and skips `.git` / untracked `__pycache__`):
-
-   ```bash
-   git grep -nF -e 'visualizer-cli' -e 'visualizer_cli'
-   ```
-
-2. Set your `suffix` (and `backend`) in `culture.yaml`. `whoami` and `doctor`
-   then reflect the new identity with no further code change.
-3. Rewrite `CLAUDE.md` (and this file, and the other two harness files) to
-   describe your agent.
-4. Re-vendor the skill kit you need from guildmaster (see
-   `docs/skill-sources.md`) — keep only the skills your agent uses.
+- One document model (prose, chart and diagram blocks) behind three thin
+  fronts with the same capabilities: CLI authoring verbs, an HTTP API, and an
+  MCP server.
+- A responsive browser viewer for desktop and phone, servable remotely.
+- [Issue #1](https://github.com/agentculture/visualizer-cli/issues/1):
+  architecture diagrams rendered as interactive React Flow graphs (pan/zoom,
+  phone-friendly, standalone HTML), with Mermaid kept as source/fallback. The
+  first target is the `embodiment` layer diagram. Open questions (React Flow
+  package choice, how the JS ships, and the missing source diagram) are
+  tracked in `CLAUDE.md`.
 
 ## The CLI
 
 The CLI is cited (cite-don't-import) from teken's `python-cli` reference
 (`teken cli cite`), so the runtime package has **no third-party dependencies**;
-`teken` (a.k.a. `afi-cli`) is a dev dependency only. Agent-first verbs:
+`teken` (a.k.a. `afi-cli`) is a dev dependency only. The console script is
+`visualizer` (e.g. `uv run visualizer whoami`); `visualizer-cli` is the
+program/dist name used below. Agent-first verbs:
 
 - `visualizer-cli whoami` — identity from `culture.yaml`.
 - `visualizer-cli learn` — structured self-teaching prompt.
@@ -105,6 +105,12 @@ from guildmaster instead.
   `version-bump` skill; the `version-check` CI job blocks merge otherwise.
 - **Tests**: `uv run pytest -n auto`. **Lint**: black, isort, flake8 (line
   length 100), bandit, markdownlint.
+- **File length limit**: no tracked source file may exceed **400 lines**.
+  The cap and checked extensions live in `pyproject.toml`
+  `[tool.file-length]` (`max-lines`; `file-types` = `.py`, `.js`, `.jsx`,
+  `.ts`, `.tsx`) and CI enforces it with
+  `python3 scripts/check-file-length.py`. Vendored skills are exempt. Split
+  files into modules (see `scripts/_harness_smoke/`).
 - **Deploy**: pushing to `main` publishes to PyPI via Trusted Publishing
   (`.github/workflows/publish.yml`); PRs do a TestPyPI dry-run.
 
@@ -115,6 +121,7 @@ visualizer_cli/   agent-first CLI (cited from teken's python-cli reference)
   cli/                    parser, error/output contract, _commands/ (verbs)
   explain/                markdown catalog for `explain`
 tests/                    pytest smoke + introspection tests
+scripts/                  CI gates: scan-secrets, check-file-length, harness-smoke (+ _harness_smoke/)
 .claude/skills/           vendored guildmaster skill kit (cite-don't-import)
 docs/skill-sources.md     skill provenance ledger
 culture.yaml              mesh identity (suffix + backend)

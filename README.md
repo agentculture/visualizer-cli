@@ -2,85 +2,23 @@
 
 Web workspace for agent-built docs and content: agents author structured documents with charts and diagrams through a CLI, an HTTP API front, and an MCP server, and humans view them in the browser on desktop, phone, or remotely via a served site.
 
-## What you get
-
-- **An agent-first CLI** cited from [teken](https://github.com/agentculture/teken)
-  (`afi-cli`) — the runtime package has no third-party dependencies.
-- **A mesh identity** — `culture.yaml` (`suffix` + `backend`) and the matching
-  resident prompt file (`CLAUDE.md`, since this template runs
-  `backend: claude`). The mesh resident is one of **two separate
-  selections** over this clone — see
-  [Two selections, not one](#two-selections-not-one) below.
-- **Four harness prompt files**, one per agent harness, each read by exactly
-  one of them (see [Prompt files by harness](#prompt-files-by-harness) below).
-  All four harnesses are usable interactively regardless of which one
-  `culture.yaml` names as the mesh resident.
-- **The canonical guildmaster skill kit** (11 skills) under `.claude/skills/`,
-  vendored cite-don't-import. See [`docs/skill-sources.md`](docs/skill-sources.md).
-- **A build + deploy baseline** — pytest, lint, the agent-first rubric gate, and
-  PyPI Trusted Publishing wired into GitHub Actions.
-
-## Prompt files by harness
-
-Four harnesses, four root files, no shared base — each file is read by
-exactly one harness:
-
-| Harness | File(s) |
-|---------|---------|
-| Claude Code | [`CLAUDE.md`](CLAUDE.md) |
-| Pi / associate | [`AGENTS.override.md`](AGENTS.override.md) + [`.pi/SYSTEM.md`](.pi/SYSTEM.md) |
-| colleague | [`AGENTS.colleague.md`](AGENTS.colleague.md) |
-| Qwen Code | [`QWEN.md`](QWEN.md) |
-
-**Claude Code** — `CLAUDE.md` is the fullest write-up of the repo's
-conventions; read it first.
-
-**Pi / associate** — `AGENTS.override.md` replaces this directory's
-`AGENTS.md`/`CLAUDE.md` in Pi's context layer, so Pi does not inherit
-`CLAUDE.md`. `.pi/SYSTEM.md` replaces Pi's default system prompt with the
-non-coding `associate` identity (read/find/summarize only).
-
-**colleague** — colleague's prompt cascade is `AGENTS.md` →
-`AGENTS.colleague.md` → `AGENTS.colleague.<model>.md`. This repo ships only
-the middle layer: there is no `AGENTS.md` (a shared base across harnesses was
-considered and rejected) and no per-model override file.
-
-**Qwen Code** — Qwen Code reads `QWEN.md` and `AGENTS.md`; since there is no
-`AGENTS.md`, `QWEN.md` is its sole source of guidance.
-
-There is intentionally **no `AGENTS.md`** at the root — each harness gets an
-unrelated file rather than cascading from a shared base.
-
-## Two selections, not one
-
-It is tempting to read "switch harness" as one decision. It is actually two,
-and this template exists partly to keep them separate:
-
-1. **The interactive harness** — which binary you run (`claude`, `pi`,
-   `colleague`, `qwen`). `cd` into the clone and run any of them; all four
-   are live simultaneously, and none of them requires editing a file or
-   flipping a switch. A harness can be force-selected for one invocation
-   (e.g. a CI smoke check) without ever touching `culture.yaml` — see
-   [`docs/automation-contract.md`](docs/automation-contract.md).
-2. **The mesh resident** — the single `backend` `culture.yaml` declares,
-   which is what the Culture daemon starts and what `steward doctor`
-   checks. `guild harness use <name>` changes only this.
-
-`culture.yaml`'s `backend` affects (2) only. It never affects which harness
-you can invoke interactively in (1). See
-[`docs/harness-selection.md`](docs/harness-selection.md) for the full
-writeup, including who reads this config and why existing siblings are not
-retrofitted by this arc.
+> **Status: early scaffold.** What exists today is the agent-first CLI
+> skeleton (identity and introspection verbs), the mesh identity, the vendored
+> skill kit, and CI/deploy. The document workspace itself is
+> [planned](#roadmap).
 
 ## Quickstart
 
 ```bash
 uv sync
-uv run pytest -n auto                 # run the test suite
-uv run visualizer-cli whoami  # identity from culture.yaml
-uv run visualizer-cli learn   # self-teaching prompt (add --json)
-uv run teken cli doctor . --strict    # the agent-first rubric gate CI runs
+uv run pytest -n auto              # run the test suite
+uv run visualizer whoami           # identity from culture.yaml
+uv run visualizer learn --json     # self-teaching prompt for agents
+uv run teken cli doctor . --strict # the agent-first rubric gate CI runs
 ```
+
+The installed console script is `visualizer`. The program and package are
+named `visualizer-cli`, and `python -m visualizer_cli` also works.
 
 ## CLI
 
@@ -95,32 +33,83 @@ uv run teken cli doctor . --strict    # the agent-first rubric gate CI runs
 
 Every command supports `--json`. Results go to stdout, errors/diagnostics to
 stderr (never mixed). Exit codes: `0` success, `1` user error, `2` environment
-error, `3+` reserved.
+error, `3+` reserved. The CLI is cited from
+[teken](https://github.com/agentculture/teken) (`afi-cli`) and the runtime
+package has no third-party dependencies.
 
-## Make it your own
+## Roadmap
 
-1. Rename the package `visualizer_cli/` and the `visualizer-cli`
-   CLI/dist name throughout `pyproject.toml`, the package, `tests/`,
-   `sonar-project.properties`, and this `README.md`. The name is hard-coded in
-   ~100 places, so list every occurrence first — see the `git grep` discovery
-   command in [`CLAUDE.md`](CLAUDE.md), the authoritative rename procedure.
-2. Edit `culture.yaml` with your `suffix` and `backend`, and adjust its
-   `gate` section (below) to your project's setup and test commands.
-3. Rewrite `CLAUDE.md` for your agent and run `/init`. Rewrite the other three
-   harness files (`AGENTS.override.md` + `.pi/SYSTEM.md`, `AGENTS.colleague.md`,
-   `QWEN.md`) too if your agent uses those harnesses — don't let them drift out
-   of sync with `CLAUDE.md`.
-4. Re-vendor only the skills you need from guildmaster (see
-   [`docs/skill-sources.md`](docs/skill-sources.md)).
+Planned. None of the items below is built yet.
 
-See [`CLAUDE.md`](CLAUDE.md) for the full conventions (version-bump-every-PR,
-the `cicd` PR lane, deploy setup).
+- **Document model**: structured documents made of prose, chart, and diagram
+  blocks.
+- **Three agent fronts over one model**: CLI authoring verbs, an HTTP API, and
+  an MCP server, all with the same capabilities.
+- **Browser viewer**: responsive on desktop and phone, and servable remotely.
+- **Interactive diagrams**
+  ([#1](https://github.com/agentculture/visualizer-cli/issues/1)): render
+  architecture diagrams as pan/zoom React Flow graphs, exported as standalone
+  HTML, with Mermaid kept as the source and fallback. The first target is the
+  `embodiment` layer diagram (Surface → embodiment daemon → lobes gateway
+  roles → eidetic/coherence memory).
+
+## Development
+
+| Check | Command |
+|-------|---------|
+| Tests | `uv run pytest -n auto` (coverage floor 60%) |
+| Format / lint | `uv run black --check visualizer_cli tests scripts`, `uv run isort --check-only visualizer_cli tests scripts`, `uv run flake8 visualizer_cli tests scripts` |
+| Security | `uv run bandit -c pyproject.toml -r visualizer_cli`, `python3 scripts/scan-secrets.py` |
+| File length | `python3 scripts/check-file-length.py` (400-line cap) |
+| Markdown | `markdownlint-cli2 "**/*.md"` |
+| Harness configs | `uv run python scripts/harness-smoke.py --stage all --require config` |
+
+**File length limit.** No tracked source file may exceed **400 lines**.
+`pyproject.toml` `[tool.file-length]` sets the cap (`max-lines = 400`) and the
+checked extensions (`file-types`: `.py`, plus `.js`/`.jsx`/`.ts`/`.tsx` for the
+planned frontend). The CI lint job enforces it. The
+vendored skills are exempt. Long files are split into modules instead of
+exempted: `scripts/_harness_smoke/` is the example.
+
+**Every PR bumps the version**, including docs- or CI-only PRs; the
+`version-check` job blocks merge otherwise. A push to `main` that touches the
+package publishes to PyPI through Trusted Publishing, and PRs publish a
+TestPyPI dev build.
+
+## Prompt files by harness
+
+Four harnesses, four root files, no shared base. Each file is read by exactly
+one harness:
+
+| Harness | File(s) |
+|---------|---------|
+| Claude Code | [`CLAUDE.md`](CLAUDE.md) (the fullest write-up; read it first) |
+| Pi / associate | [`AGENTS.override.md`](AGENTS.override.md) + [`.pi/SYSTEM.md`](.pi/SYSTEM.md) |
+| colleague | [`AGENTS.colleague.md`](AGENTS.colleague.md) |
+| Qwen Code | [`QWEN.md`](QWEN.md) |
+
+There is intentionally **no `AGENTS.md`** at the root. It would shadow the Pi
+and colleague files, and CI fails if one appears. All four harnesses can be
+used interactively at the same time.
+
+`culture.yaml`'s `backend` (`claude`) selects only the **mesh resident**, the
+agent the Culture daemon starts and the one `steward doctor` checks. It does
+not limit which harness you can run in this clone. See
+[`docs/harness-selection.md`](docs/harness-selection.md) and
+[`docs/automation-contract.md`](docs/automation-contract.md).
+
+## Skills
+
+`.claude/skills/` vendors the guildmaster skill kit verbatim
+(cite-don't-import). `.qwen/skills`, `.colleague/skills` and `.pi/skills` are
+symlinks onto it. Provenance and the re-sync procedure are in
+[`docs/skill-sources.md`](docs/skill-sources.md).
 
 ## The `gate` section
 
-`culture.yaml` may carry a top-level `gate` section that declares how to set
-up and test this repo, so tooling (for example a PR-fixer that re-runs the
-checks before pushing) needs no per-repo knowledge:
+`culture.yaml` carries a top-level `gate` section that declares how to set up
+and test this repo, so tooling (for example a PR-fixer that re-runs checks
+before pushing) needs no per-repo knowledge:
 
 ```yaml
 gate:
@@ -130,11 +119,9 @@ gate:
   - [uv, run, pytest, -n, auto]
 ```
 
-`setup` and `test` are each a list of commands, and each command is an argv
-list (never a shell string), run in order from the repo root. The values are
-configuration only; no tool supplies a default. Culture's loader ignores
-unknown top-level keys, so the section is safe alongside `agents`.
+Each command is an argv list (never a shell string), and commands run in order
+from the repo root. Culture's loader ignores unknown top-level keys.
 
 ## License
 
-Apache 2.0 — see [`LICENSE`](LICENSE).
+Apache 2.0. See [`LICENSE`](LICENSE).

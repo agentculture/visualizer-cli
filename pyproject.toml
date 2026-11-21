@@ -1,6 +1,6 @@
 [project]
 name = "visualizer-cli"
-version = "0.10.0"
+version = "0.11.0"
 description = "Web workspace for agent-built docs and content: agents author structured documents with charts and diagrams through a CLI, an HTTP API front, and an MCP server, and humans view them in the browser on desktop, phone, or remotely via a served site."
 readme = "README.md"
 license = "Apache-2.0"
@@ -70,6 +70,16 @@ target-version = ["py312"]
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B101", "B404", "B603"]
+
+# File-length gate: every tracked file whose extension is in file-types
+# (package, scripts/, tests/, and the planned frontend) stays at or under
+# max-lines. Enforced in the CI lint job by
+# scripts/check-file-length.py (cited from culture-agent-template); vendored
+# .claude/skills/ are exempt. Split a file into modules before it crosses the
+# cap — scripts/_harness_smoke/ is the worked example.
+[tool.file-length]
+max-lines = 400
+file-types = [".py", ".js", ".jsx", ".ts", ".tsx"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

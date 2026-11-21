@@ -31,13 +31,20 @@ update this section so the docs keep matching what's actually on disk.
 
 ## What this project is
 
-`visualizer-cli` is a clonable template for AgentCulture mesh agents —
-an agent-first CLI, a mesh identity, the canonical skill kit, and a
-buildable/deployable package baseline. `CLAUDE.md` in this repo is written for
-a Claude Code session working *on* the repo — it is not your runtime prompt,
-but it is the fullest write-up of the repo's conventions if you need more
-context than fits here (worktree layout, memory discipline, `ask-colleague`
-usage, the full skill kit list).
+`visualizer-cli` is the AgentCulture agent for a web workspace for
+agent-built docs and content. Agents author structured documents with charts
+and diagrams through a CLI, an HTTP API, and an MCP server, and humans view
+them in the browser. **Today only the scaffold exists**: the agent-first CLI
+(identity/introspection verbs), the mesh identity, the skill kit, and CI. The
+document model, the fronts and the viewer are planned, as is
+[issue #1](https://github.com/agentculture/visualizer-cli/issues/1)
+(interactive React Flow diagrams exported as standalone HTML, with Mermaid as
+source/fallback).
+
+`CLAUDE.md` is written for a Claude Code session, so it is not your runtime
+prompt. It is still the fullest write-up of the repo's conventions and
+architecture (CLI contract, roadmap, open questions on issue #1). Read it when
+you need more context than fits here.
 
 ## How you work
 
@@ -49,3 +56,10 @@ usage, the full skill kit list).
   (see `docs/skill-sources.md` for the re-sync procedure).
 - Every PR bumps the version (`version-bump` skill) — CI's `version-check` job
   blocks merge otherwise.
+- No tracked source file (`.py`, `.js`, `.jsx`, `.ts`, `.tsx`) may exceed
+  **400 lines**. The cap and extensions are set in `pyproject.toml`
+  `[tool.file-length]` (`max-lines`, `file-types`) and checked by
+  `python3 scripts/check-file-length.py` in CI. Split a file that grows too
+  large into modules (see `scripts/_harness_smoke/`).
+- Run tests with `uv run pytest -n auto`. The console script is `visualizer`
+  (for example `uv run visualizer whoami`), not `visualizer-cli`.
