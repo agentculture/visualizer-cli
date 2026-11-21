@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "check-file-length.py"
 
@@ -37,7 +39,60 @@ def _write_lines(path: Path, n: int) -> Path:
 
 
 def test_the_cap_is_400() -> None:
-    assert cfl.MAX_LINES == 400
+    assert cfl.load_max_lines(REPO_ROOT) == 400
+
+
+@pytest.mark.parametrize(
+    ("pyproject", "needle"),
+    [
+        ("[tool.file-length]\nmax-lines = 0\n", "max-lines must be a positive integer"),
+        ("[tool.file-length\n", "invalid TOML"),
+        ("[tool]\nfile-length = 5\n", "[tool.file-length] must be a table"),
+        ('tool = "x"\n', "[tool] must be a table"),
+        ('[tool.file-length]\nfile-types = ".py"\n', "file-types must be a non-empty list"),
+    ],
+)
+def test_a_broken_config_in_the_scripts_own_repo_is_a_clean_exit_2(
+    tmp_path: Path, pyproject: str, needle: str
+) -> None:
+    """Regression: the config used to be loaded at import, so a bad pyproject
+    next to the script crashed with a traceback and exit 1 (the "oversized"
+    code). Run a copy *without* --repo so its own REPO_ROOT is the bad repo."""
+    (tmp_path / "scripts").mkdir()
+    script = tmp_path / "scripts" / SCRIPT.name
+    script.write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+    _write_lines(tmp_path / "a.py", 1)
+    proc = subprocess.run(
+        [sys.executable, str(script), str(tmp_path / "a.py")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert needle in proc.stderr
+    assert proc.stderr.startswith("error: ")
+    assert "Traceback" not in proc.stderr
+    assert proc.stdout == ""
+
+
+@pytest.mark.parametrize("cap", ["0", "-1"])
+def test_a_non_positive_max_is_an_error(tmp_path: Path, cap: str) -> None:
+    _write_lines(tmp_path / "a.py", 1)
+    proc = _run("--repo", str(tmp_path), "--max", cap, str(tmp_path / "a.py"))
+    assert proc.returncode == 2
+    assert "--max must be a positive integer" in proc.stderr
+    assert "Traceback" not in proc.stderr
+
+
+def test_a_path_outside_the_repo_is_an_error(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    outside = _write_lines(tmp_path / "elsewhere.py", 1)
+    proc = _run("--repo", str(repo), str(outside))
+    assert proc.returncode == 2
+    assert "is outside the repo" in proc.stderr
+    assert "Traceback" not in proc.stderr
 
 
 def test_the_cap_is_configured_in_pyproject() -> None:
@@ -73,7 +128,7 @@ def test_file_types_follow_the_target_repos_pyproject(tmp_path: Path) -> None:
     assert "big.py" not in proc.stderr
 
 
-def test_bad_file_types_are_an_env_error(tmp_path: Path) -> None:
+def test_bad_file_types_are_an_error(tmp_path: Path) -> None:
     (tmp_path / "pyproject.toml").write_text(
         '[tool.file-length]\nfile-types = ["py"]\n', encoding="utf-8"
     )
@@ -83,7 +138,7 @@ def test_bad_file_types_are_an_env_error(tmp_path: Path) -> None:
     assert "file-types" in proc.stderr
 
 
-def test_a_missing_table_falls_back_and_a_bad_cap_is_an_env_error(tmp_path: Path) -> None:
+def test_a_missing_table_falls_back_and_a_bad_cap_is_an_error(tmp_path: Path) -> None:
     assert cfl.load_max_lines(tmp_path) == cfl.DEFAULT_MAX_LINES
     assert cfl.load_file_types(tmp_path) == cfl.DEFAULT_FILE_TYPES
     (tmp_path / "pyproject.toml").write_text(

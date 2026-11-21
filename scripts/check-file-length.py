@@ -3,14 +3,15 @@
 
 Every tracked source file in this repo (by default Python; see
 ``file-types``) — the package, ``scripts/`` and ``tests/`` alike — must stay
-at or under ``MAX_LINES`` lines. Long files are where review attention runs
+at or under the configured cap. Long files are where review attention runs
 out; the cap forces a split into focused modules before that happens, rather
 than after.
 
-The cap and the checked file types are read from ``pyproject.toml``
-(``[tool.file-length] max-lines`` and ``file-types``) so they are
-configuration, not code. ``DEFAULT_MAX_LINES`` / ``DEFAULT_FILE_TYPES`` apply
-only when the table or a key is absent.
+The cap and the checked file types are read from the target repo's
+``pyproject.toml`` (``[tool.file-length] max-lines`` and ``file-types``) so
+they are configuration, not code. ``DEFAULT_MAX_LINES`` / ``DEFAULT_FILE_TYPES``
+apply only when the table or a key is absent. Nothing is read at import time:
+a broken config is reported by :func:`main`, never as an import traceback.
 
 Excluded:
 
@@ -20,13 +21,16 @@ Excluded:
 
 Usage:
     check-file-length.py                 # check all tracked files (git ls-files)
-    check-file-length.py path [path...]  # check specific files
+    check-file-length.py path [path...]  # check specific files (inside --repo)
     check-file-length.py --max N         # override the cap (default: pyproject.toml)
 
 Output contract (the repo's): a one-line result on stdout; each offending file
 on stderr as ``path: N lines (max M)``. Exit 0 when every file is within the
-cap, 1 when any file exceeds it, 2 when ``git ls-files`` cannot run or the
-configured cap is invalid.
+cap, 1 when any file exceeds it, 2 for anything that prevents a check — an
+invalid ``[tool.file-length]`` table (cap or file types) or unparsable
+``pyproject.toml``, a non-positive ``--max``, a path outside ``--repo``, or
+``git ls-files`` failing. Every exit-2 case is a one-line ``error:`` on
+stderr, never a traceback.
 """
 
 from __future__ import annotations
@@ -43,20 +47,41 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MAX_LINES = 400
 DEFAULT_FILE_TYPES = (".py",)
 
+#: Path prefixes (repo-relative, POSIX) never checked — see the docstring.
+EXCLUDED_PREFIXES = (".claude/skills/",)
+
+EXIT_OK = 0
+EXIT_OVERSIZED = 1
+EXIT_ERROR = 2
+
+
+class ConfigError(ValueError):
+    """``pyproject.toml`` cannot be parsed or its ``[tool.file-length]`` is invalid."""
+
 
 def _table(repo: Path) -> dict:
+    """The ``[tool.file-length]`` table of ``repo/pyproject.toml`` (``{}`` if absent)."""
     pyproject = repo / "pyproject.toml"
     if not pyproject.is_file():
         return {}
-    tool = tomllib.loads(pyproject.read_text(encoding="utf-8")).get("tool", {})
-    return tool.get("file-length", {})
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"{pyproject}: invalid TOML: {exc}") from exc
+    tool = data.get("tool", {})
+    if not isinstance(tool, dict):
+        raise ConfigError(f"{pyproject}: [tool] must be a table")
+    table = tool.get("file-length", {})
+    if not isinstance(table, dict):
+        raise ConfigError(f"{pyproject}: [tool.file-length] must be a table, got {table!r}")
+    return table
 
 
 def load_max_lines(repo: Path) -> int:
     """The cap from ``repo/pyproject.toml`` ``[tool.file-length] max-lines``."""
     value = _table(repo).get("max-lines", DEFAULT_MAX_LINES)
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-        raise ValueError(f"[tool.file-length] max-lines must be a positive integer, got {value!r}")
+        raise ConfigError(f"[tool.file-length] max-lines must be a positive integer, got {value!r}")
     return value
 
 
@@ -68,25 +93,15 @@ def load_file_types(repo: Path) -> tuple[str, ...]:
         or not value
         or not all(isinstance(v, str) and v.startswith(".") for v in value)
     ):
-        raise ValueError(
+        raise ConfigError(
             f"[tool.file-length] file-types must be a non-empty list like ['.py'], got {value!r}"
         )
     return tuple(value)
 
 
-#: The cap and file types configured for this repo. Change them in
-#: pyproject.toml, not here.
-MAX_LINES = load_max_lines(REPO_ROOT)
-CHECKED_SUFFIXES = load_file_types(REPO_ROOT)
-
-#: Path prefixes (repo-relative, POSIX) never checked — see the docstring.
-EXCLUDED_PREFIXES = (".claude/skills/",)
-
-
-def is_checked(rel: str, suffixes: tuple[str, ...] | None = None) -> bool:
+def is_checked(rel: str, suffixes: tuple[str, ...] = DEFAULT_FILE_TYPES) -> bool:
     """Whether a repo-relative path is held to the cap."""
-    exts = CHECKED_SUFFIXES if suffixes is None else suffixes
-    return rel.endswith(exts) and not rel.startswith(EXCLUDED_PREFIXES)
+    return rel.endswith(suffixes) and not rel.startswith(EXCLUDED_PREFIXES)
 
 
 def tracked_files(repo: Path) -> list[str]:
@@ -107,7 +122,10 @@ def count_lines(path: Path) -> int:
 
 
 def find_oversized(
-    repo: Path, paths: list[str], max_lines: int, suffixes: tuple[str, ...] | None = None
+    repo: Path,
+    paths: list[str],
+    max_lines: int,
+    suffixes: tuple[str, ...] = DEFAULT_FILE_TYPES,
 ) -> list[tuple[str, int]]:
     """``(path, lines)`` for each checked file over ``max_lines``, in input order."""
     oversized: list[tuple[str, int]] = []
@@ -123,6 +141,22 @@ def find_oversized(
     return oversized
 
 
+def _error(message: str) -> int:
+    print(f"error: {message}", file=sys.stderr)
+    return EXIT_ERROR
+
+
+def _resolve_paths(repo: Path, raw: list[str]) -> list[str]:
+    """Repo-relative POSIX paths; raises ``ValueError`` for a path outside ``repo``."""
+    out: list[str] = []
+    for p in raw:
+        resolved = Path(p).resolve()
+        if not resolved.is_relative_to(repo):
+            raise ValueError(f"{p} is outside the repo {repo}")
+        out.append(resolved.relative_to(repo).as_posix())
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("paths", nargs="*", help="Files to check (default: all tracked files).")
@@ -136,32 +170,35 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     repo = Path(args.repo).resolve()
+    if args.max is not None and args.max <= 0:
+        return _error(f"--max must be a positive integer, got {args.max}")
     try:
         suffixes = load_file_types(repo)
-        if args.max is None:
-            args.max = load_max_lines(repo)
-    except (ValueError, tomllib.TOMLDecodeError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+        max_lines = args.max if args.max is not None else load_max_lines(repo)
+    except ConfigError as exc:
+        return _error(str(exc))
+
     if args.paths:
-        paths = [Path(p).resolve().relative_to(repo).as_posix() for p in args.paths]
+        try:
+            paths = _resolve_paths(repo, args.paths)
+        except ValueError as exc:
+            return _error(str(exc))
     else:
         try:
             paths = tracked_files(repo)
         except (OSError, subprocess.CalledProcessError) as exc:
-            print(f"error: could not list tracked files: {exc}", file=sys.stderr)
-            return 2
+            return _error(f"could not list tracked files: {exc}")
 
     checked = [p for p in paths if is_checked(p, suffixes)]
-    oversized = find_oversized(repo, checked, args.max, suffixes)
+    oversized = find_oversized(repo, checked, max_lines, suffixes)
     for rel, lines in oversized:
-        print(f"{rel}: {lines} lines (max {args.max})", file=sys.stderr)
+        print(f"{rel}: {lines} lines (max {max_lines})", file=sys.stderr)
 
     if oversized:
-        print(f"file length: {len(oversized)} of {len(checked)} file(s) over {args.max} lines")
-        return 1
-    print(f"file length: all {len(checked)} file(s) within {args.max} lines")
-    return 0
+        print(f"file length: {len(oversized)} of {len(checked)} file(s) over {max_lines} lines")
+        return EXIT_OVERSIZED
+    print(f"file length: all {len(checked)} file(s) within {max_lines} lines")
+    return EXIT_OK
 
 
 if __name__ == "__main__":

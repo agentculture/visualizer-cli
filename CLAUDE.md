@@ -41,9 +41,9 @@ have to pass:
 ```bash
 python3 scripts/scan-secrets.py            # committed secrets / non-localhost endpoints
 python3 scripts/check-file-length.py       # 400-line gate (see below)
-uv run black --check visualizer_cli tests
-uv run isort --check-only visualizer_cli tests
-uv run flake8 visualizer_cli tests         # line length 100, E203/W503 ignored
+uv run black --check visualizer_cli tests scripts
+uv run isort --check-only visualizer_cli tests scripts
+uv run flake8 visualizer_cli tests scripts # line length 100, E203/W503 ignored
 uv run bandit -c pyproject.toml -r visualizer_cli
 markdownlint-cli2 "**/*.md" "#node_modules" "#.local" "#.claude/skills" "#.teken"
 uv run teken cli doctor . --strict         # agent-first rubric gate

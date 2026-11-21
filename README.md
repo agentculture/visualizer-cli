@@ -58,7 +58,7 @@ Planned. None of the items below is built yet.
 | Check | Command |
 |-------|---------|
 | Tests | `uv run pytest -n auto` (coverage floor 60%) |
-| Format / lint | `uv run black --check visualizer_cli tests`, `uv run isort --check-only visualizer_cli tests`, `uv run flake8 visualizer_cli tests` |
+| Format / lint | `uv run black --check visualizer_cli tests scripts`, `uv run isort --check-only visualizer_cli tests scripts`, `uv run flake8 visualizer_cli tests scripts` |
 | Security | `uv run bandit -c pyproject.toml -r visualizer_cli`, `python3 scripts/scan-secrets.py` |
 | File length | `python3 scripts/check-file-length.py` (400-line cap) |
 | Markdown | `markdownlint-cli2 "**/*.md"` |
